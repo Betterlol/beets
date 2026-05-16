@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import re
 from contextlib import contextmanager
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import platformdirs
@@ -8,6 +10,7 @@ import platformdirs
 import beets
 from beets import context, dbcore
 from beets.dbcore.sort import NullSort
+from beets.exceptions import UserError
 from beets.util import normpath
 
 from . import migrations
@@ -16,6 +19,7 @@ from .queries import PF_KEY_DEFAULT, parse_query_parts, parse_query_string
 
 if TYPE_CHECKING:
     from beets.dbcore import Results
+    from beets.util import Replacements
 
 
 class Library(dbcore.Database):
@@ -32,12 +36,25 @@ class Library(dbcore.Database):
         (migrations.RelativePathMigration, (Item, Album)),
     )
 
+    @cached_property
+    def replacements(self) -> Replacements:
+        """Confuse validation function that reads regex/string pairs."""
+        replacements = []
+        for pattern, repl in beets.config["replace"].get(dict).items():
+            repl = repl or ""
+            try:
+                replacements.append((re.compile(pattern), repl))
+            except re.error:
+                raise UserError(
+                    f"Malformed regular expression in replace: {pattern}"
+                )
+        return replacements
+
     def __init__(
         self,
         path="library.blb",
         directory: str | None = None,
         path_formats=((PF_KEY_DEFAULT, "$artist/$album/$track $title"),),
-        replacements=None,
         set_music_dir: bool = True,
     ):
         timeout = beets.config["timeout"].as_number()
@@ -48,7 +65,6 @@ class Library(dbcore.Database):
         super().__init__(path, timeout=timeout)
 
         self.path_formats = path_formats
-        self.replacements = replacements
 
         # Used for template substitution performance.
         self._memotable: dict[tuple[str, ...], str] = {}

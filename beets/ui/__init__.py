@@ -437,20 +437,6 @@ def get_path_formats(subview=None):
     return path_formats
 
 
-def get_replacements():
-    """Confuse validation function that reads regex/string pairs."""
-    replacements = []
-    for pattern, repl in config["replace"].get(dict).items():
-        repl = repl or ""
-        try:
-            replacements.append((re.compile(pattern), repl))
-        except re.error:
-            raise UserError(
-                f"malformed regular expression in replace: {pattern}"
-            )
-    return replacements
-
-
 @cache
 def term_width() -> int:
     """Get the width (columns) of the terminal."""
@@ -880,7 +866,6 @@ def _open_library(config: confuse.LazyConfig) -> library.Library:
             dbpath,
             config["directory"].as_filename(),
             get_path_formats(),
-            get_replacements(),
         )
         lib.get_item(0)  # Test database connection.
     except (sqlite3.OperationalError, sqlite3.DatabaseError) as db_error:
