@@ -8,19 +8,20 @@ from typing import TYPE_CHECKING
 import platformdirs
 
 import beets
-from beets import context, dbcore
+from beets import config, context, dbcore
 from beets.dbcore.sort import NullSort
 from beets.exceptions import UserError
 from beets.util import normpath
+from beets.util.pathformats import get_path_formats
 
 from . import migrations
 from .models import Album, Item
-from .queries import PF_KEY_DEFAULT, parse_query_parts, parse_query_string
+from .queries import parse_query_parts, parse_query_string
 
 if TYPE_CHECKING:
     from beets.dbcore import Results
     from beets.util import Replacements
-    from beets.util.functemplate import Template
+    from beets.util.pathformats import PathFormat
 
 
 class Library(dbcore.Database):
@@ -36,6 +37,10 @@ class Library(dbcore.Database):
         (migrations.MultiArrangerFieldMigration, (Item,)),
         (migrations.RelativePathMigration, (Item, Album)),
     )
+
+    @cached_property
+    def path_formats(self) -> list[PathFormat]:
+        return get_path_formats(config["paths"])
 
     @cached_property
     def replacements(self) -> Replacements:
@@ -55,17 +60,13 @@ class Library(dbcore.Database):
         self,
         path="library.blb",
         directory: str | None = None,
-        path_formats: list[tuple[str, Template]] | None = None,
         set_music_dir: bool = True,
     ):
-        timeout = beets.config["timeout"].as_number()
         self.directory = normpath(directory or platformdirs.user_music_path())
         if set_music_dir:
             context.set_music_dir(self.directory)
 
-        super().__init__(path, timeout=timeout)
-
-        self.path_formats = path_formats
+        super().__init__(path, timeout=beets.config["timeout"].as_number())
 
         # Used for template substitution performance.
         self._memotable: dict[tuple[str, ...], str] = {}
