@@ -8,6 +8,7 @@ from .color import colorize
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from beets.dbcore import Database
     from beets.dbcore.db import FormattedMapping
     from beets.library.models import LibModel
 
@@ -47,7 +48,7 @@ def _multi_value_diff(field: str, oldset: set[str], newset: set[str]) -> str:
 
 
 def _field_diff(
-    field: str, old: FormattedMapping, new: FormattedMapping
+    field: str, old: FormattedMapping[Database], new: FormattedMapping[Database]
 ) -> str | None:
     """Given two Model objects and their formatted views, format their values
     for `field` and highlight changes among them. Return a human-readable
